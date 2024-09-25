@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Tracker UIM to Ayush's house</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        body{
+            align-items: center;
+        }
+        body h1{
+            text-align: center;
+            background-color: burlywood;
+            border-radius: 10px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vehicle Tracker</h1>
+    <span>
+        <h3>Tracking path between two cordinates of map</h3>
+    </span>
+    <p>Here Starting point Is my college location i.e UNITED INSTITUTE OF MANAGEMENT and the end point is My home location <br>
+    You can change the initial and final destination according to you from the source code. <br>
+    >>>Kindly wait for the page to load 
+   
+    </p>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map view centered on Prayagraj, Uttar Pradesh
+        const map = L.map('map').setView([25.342884, 81.911091], 13);  // Define the coordinates for Prayagraj
+
+        // Add OpenStreetMap tiles as the base layer for map rendering
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Define the car icon image to be used as a tracker
+        const carIcon = L.icon({
+            iconUrl: 'carIcon.png',  // Specify the URL of the car image
+            iconSize: [50, 50], // Set the dimensions of the icon
+            iconAnchor: [25, 25], // Define the anchor point of the icon
+        });
+
+        // Create a marker to represent the vehicle on the map
+        const vehicleMarker = L.marker([25.342884, 81.911091], { icon: carIcon }).addTo(map).bindPopup('Vehicle');
+
+        // OpenRouteService API key for route calculation
+        const apiKey = '5b3ce3597851110001cf62488aa130d49d884e0688afdbeacc680f74';  // Replace this with your OpenRouteService API key
+
+        // Function to retrieve the route using OpenRouteService API with waypoints
+        async function getRouteWithWaypoints(waypoints) {
+            const waypointString = waypoints.map(point => `${point[1]},${point[0]}`).join('|'); // Create a string of waypoints
+            const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${waypoints[0][1]},${waypoints[0][0]}&end=${waypoints[waypoints.length - 1][1]},${waypoints[waypoints.length - 1][0]}&waypoints=${waypointString}`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Network response was not successful ' + response.statusText);
+                }
+                const data = await response.json();
+                if (data.features.length === 0) {
+                    throw new Error('No route found');
+                }
+                const coordinates = data.features[0].geometry.coordinates;
+
+                return coordinates.map(coord => [coord[1], coord[0]]);  // Swap lat/lng order
+            } catch (error) {
+                console.error('Error fetching route:', error);
+                alert('Error fetching route: ' + error.message);
+                return []; // Return an empty array if there is an error
+            }
+        }
+
+        // Define the start location, waypoints, and return to start location
+        const waypoints = [
+            [25.342884, 81.911091],  // Starting point in Prayagraj
+            [25.398555, 81.869036],  // Return to a different point for end location
+            // [25.342884, 81.911091]   // Finally return to the Starting point
+        ];
+
+        // Simulate vehicle movement along the route
+        async function simulateVehicleMovement() {
+            const route = await getRouteWithWaypoints(waypoints);
+
+            if (route.length === 0) {
+                console.error('No route available for the given waypoints.');
+                return; // Exit if no route is found
+            }
+
+            // Draw the full path on the map before starting the vehicle movement
+            L.polyline(route, { color: 'blue' }).addTo(map);
+
+            let positionIndex = 0;
+
+            // Move the car every second
+            const moveInterval = setInterval(() => {
+                if (positionIndex < route.length) {
+                    const newPosition = route[positionIndex];
+
+                    // Update the marker's position
+                    vehicleMarker.setLatLng(newPosition);
+
+                    // Optionally pan the map to follow the vehicle
+                    map.panTo(newPosition);
+
+                    // Increment the position index to move to the next point
+                    positionIndex++;
+                } else {
+                    clearInterval(moveInterval); // Stop moving when reaching the last point
+                }
+            }, 1000);  // Move the vehicle every second
+        }
+
+        // Start the vehicle movement simulation
+        simulateVehicleMovement();
+    </script>
+</body>
+</html>
